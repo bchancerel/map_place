@@ -54,6 +54,7 @@ MAP         = []
 MAP_X       = 0
 MAP_Y       = 0
 BUFFER      = []
+NEXT_COORDS = []
 ### DECLARATION DES FONCTION
 #
 #
@@ -63,6 +64,8 @@ Affiche la carte dans le terminal
 '''
 def print_map() :
     global MAP
+
+    print(BUFFER)
     
     for row in MAP :
         for col in row :
@@ -100,9 +103,6 @@ def max_coords() :
     map_size = MAP_SIZE if (MAP_SIZE % 2 == 0 ) else MAP_SIZE - MAP_Y
     return (map_size / 2 / MAP_X, map_size / 2 / MAP_Y)
 
-'''
-Place une croix aux coordonnées indiquées sur la carte
-'''
 def __transform_coords(x, y):
     map_x = MAP_X if (MAP_X % 2 == 0) else MAP_X - 1
     map_y = MAP_Y if (MAP_Y % 2 == 0) else MAP_Y - 1
@@ -110,19 +110,162 @@ def __transform_coords(x, y):
     y = int(y + map_y / 2)
     return(x, y)
 
+'''
+Place une croix aux coordonnées indiquées sur la carte
+'''
+def get_next_cards(x, y):
+    if y == 0 :
+        y = x
+        x = 0
+    elif x == 0 and y > 0 :
+        x = -y
+        y = 0
+    elif x == 0 and y < 0:
+        x = -y
+        y = -y
+    
+    NEXT_COORDS.append([x, y])
+    if len(NEXT_COORDS) > 1 :
+        del NEXT_COORDS[0]
+        print(NEXT_COORDS)
+
+def get_next_limites(x, y):
+    if x == y:
+        x = -y
+    elif x < 0 and y > 0 :
+        y = x
+    elif x == 1 and y == -1 :
+        x += 1
+        y = 0
+    elif x > 0 and y < 0 :
+        y = 1
+    
+    NEXT_COORDS.append([x, y])
+    if len(NEXT_COORDS) > 1 :
+        del NEXT_COORDS[0]
+        print(NEXT_COORDS)
+
+def get_next_intervalles(x, y):
+    if x > 1 and 0 < y < x :
+        x, y = y, x
+    elif y > 1 and 0 < x < y :
+        x = -x
+    elif y > 1 and x < 0 and abs(x) < abs(y) :
+        x, y = -y, -x
+    elif x < -1 and 0 < y :
+        y = -y
+    elif x < -1 and y < 0 and abs(y) < abs(x) :
+        x, y = y, x
+    elif y < -1 and x < 0 :
+        x = -x
+    elif x > 0 and y < -1  and abs(y) > abs(x):
+        x, y = -y, -x
+    elif x > 2 and y <= -1 and abs(x) - abs(y) > 1:
+        y = abs(y) + 1
+    elif x >= 2 and y <= -1 and abs(x) - abs(y) == 1 :
+        x += 1
+        y = 0
+
+    NEXT_COORDS.append([x, y])
+    if len(NEXT_COORDS) > 1 :
+        del NEXT_COORDS[0]
+        print(NEXT_COORDS)
+
 def place(x, y) :
-    x, y = __transform_coords(x, y)
-    MAP[y][x] = 'X'
-    print_map()
+    global NEXT_COORDS
+    _x, _y = __transform_coords(x, y)
+    print(x, y)
+    if MAP[_y][_x] == 'X' :
+        print("Cette emplacement est déjà occupé, placment impossible")
+    else :
+        MAP[_y][_x] = 'X'
+        # Calcul des prochaine coordonées 
+
+        # Calcul du prochain cardinaux 
+        if x == 0 and y == 0:
+            x = 1
+            NEXT_COORDS.append([x, y])
+            if len(NEXT_COORDS) > 1 :
+                del NEXT_COORDS[0]
+        elif x == 0 or y == 0:
+            get_next_cards(x, y)
+
+        # Calcul de la prochaine limite 
+        elif abs(x) == abs(y):
+            get_next_limites(x, y)
+
+        # Calcul de la prochiane intervalle 
+        elif x != y and x != 0 and y != 0:
+            get_next_intervalles(x, y)
+           
+        print_map()
+
+def place_without_calcul(x, y):
+    global NEXT_COORDS
+    _x, _y = __transform_coords(x, y)
+    print(x, y)
+    if MAP[_y][_x] == 'X':
+        print("Cette emplacement est déjà occupé, placment impossible")
+    else :
+        MAP[_y][_x] = 'X'
+        print_map()
+
+def verif_cmd_place(cmd):
+    if len(cmd) == 3 :
+        x = cmd[1]
+        y = cmd[2]
+        if x[0] == '-':
+            x = x[1:]
+        if y[0] == '-':
+            y = y[1:]
+        
+        if x.isnumeric() \
+        and y.isnumeric() \
+        and int(cmd[1]) <= (MAP_X - 1) / 2 \
+        and int(cmd[2]) <= (MAP_Y - 1) / 2 :
+            place_without_calcul(int(cmd[1]), int(cmd[2]))
+    else : 
+        print("Les deuxième et troisième paramètre doivent être un nomnre" \
+            + " et inférieur ou égale à la moitié de la carte")
+
+def auto():
+    global BUFFER
+    if len(BUFFER) == 0:
+        if len(NEXT_COORDS) == 0 :
+            place(0, 0)
+        else :
+            place(NEXT_COORDS[0][0], NEXT_COORDS[0][1])
+    else :
+        place_without_calcul(BUFFER[0][0], BUFFER[0][1])
+        del BUFFER[0]        
 
 def remove(x, y):
     global BUFFER
-    x, y = __transform_coords(x, y)
-    MAP[y][x] = '0'
-    BUFFER.append([x, y])
-    print(BUFFER)
-    print_map()
+    _x, _y = __transform_coords(x, y)
+    if MAP[_y][_x] == 'o' or MAP[_y][_x] == '0':
+       print("Veuillez choisir un autre emplacement celui-ci est vide")
+    else : 
+        MAP[_y][_x] = '0'
+        BUFFER.append([x, y])
+        print_map()
 
+def verif_cmd_remove(cmd) :
+    if len(cmd) == 3 :
+        x = cmd[1]
+        y = cmd[2]
+        if x[0] == '-' :
+            x = x[1:]
+        if y[0] == '-' :
+            y = y[1:]
+
+        if x.isnumeric() \
+        and y.isnumeric() \
+        and int(cmd[1]) <= (MAP_X - 1) / 2 \
+        and int(cmd[2]) <= (MAP_Y - 1) / 2 :
+            remove(int(cmd[1]), int(cmd[2]))
+    else :
+        print("Les deuxième et troisième paramètre doivent être un nomnre" \
+            + " et inférieur ou égale à la moitié de la carte")
 '''
 Prend une chaine de caractère et vérifie si celle-ci correspond a des
 paramettres indiqués dans INPUT_CMD
@@ -137,6 +280,9 @@ def parse_input(input) :
     # Intégrer des vérifications sur les paramettres de la commande
     return True
 
+'''
+Turn avec système de tableau qui obtient les valeurs via des fontions gat 
+'''
 def get_cardinals(i) :
     return [[i, 0], [0, i], [-i, 0], [0, -i]]
 
@@ -147,7 +293,7 @@ def get_intervalles(i, j):
     return [[i, j], [j, i], [-j, i], [-i, j],
             [-i, -j], [-j, -i], [j, -i], [i, -j]]
 
-def turn(index):
+def turn_v1(index):
     global MAP
     for k in range(1, index + 1):
         cards       = get_cardinals(k)
@@ -164,12 +310,21 @@ def turn(index):
             for intervalle in intervalles :
                 place(intervalle[0], intervalle[1])
 
+'''
+Turn avec le système calcul de place
+'''
+
+def turn_v2(index):
+    for i in range(index):
+        if len(NEXT_COORDS) == 0 :
+            place(0, 0)
+        else :
+            place(NEXT_COORDS[0][0], NEXT_COORDS[0][1])
+
 def verif_cmd_turn(cmd):
     if len(cmd) == 2 \
-        and cmd[1].isnumeric() \
-        and int(cmd[1]) <= (MAP_X - 1) / 2 :
-        place(0, 0)
-        turn(int(cmd[1]))
+    and cmd[1].isnumeric() :
+        turn_v2(int(cmd[1]))
     else :
         print("Le deuième paramètre doit être un nombre" \
             + " et inférieur ou égale à la moitié de la carte" 
@@ -198,13 +353,13 @@ def main(size) :
             if cmd[0] == "exit" :
                 exit(0) # instruction systhème
             elif cmd[0] == "auto" :
-                pass
+                auto()
             elif cmd[0] == "place" :
-                pass
+                verif_cmd_place(cmd)
             elif cmd[0] == "turn" :
                verif_cmd_turn(cmd)
             elif cmd[0] == "remove" :
-                remove(1 , 2)
+                verif_cmd_remove(cmd)
             else :
                 print(cmd + "ne correspond a auccune instruction.")
 
